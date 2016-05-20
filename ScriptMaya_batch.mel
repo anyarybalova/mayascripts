@@ -1,0 +1,231 @@
+//
+//
+//
+//
+
+global proc GenerarArchivo(){
+int $m = 0;
+int $valorS, $valorE, $valorX, $valorY;
+string $format;
+string $archivoMaya = `file -q -shn -sceneName`; 
+string $arch ="D:/R1_batch/"+$archivoMaya+"_queue.bat"; 
+int $cant =0;
+
+string $multiAttrs[] = `listAttr -multi renderLayerManager.renderLayerId`;
+
+for ($multiAttr in $multiAttrs) {
+      string $multiPlug = "renderLayerManager."+$multiAttr;
+       string $renderLayer[] = `listConnections $multiPlug`;
+$cant++;
+}
+
+
+$ar = `fopen $arch "w"`; 
+
+
+
+    for($m=1;$m<=$cant;$m++)
+	{
+	$nombre = "Datos"+$m;
+	int $hago = `getAttr ($nombre+".flippedNormal")`;
+
+	if ($hago ==1){
+		fprint($ar,"%\nrender ");
+		fprint($ar,"-s ");
+		$valorS = `getAttr ($nombre+".pointWorldX")`;
+		fprint($ar,$valorS);
+	
+		fprint($ar," -e ");
+		$valorE = `getAttr ($nombre+".pointWorldY")`;
+		fprint($ar,$valorE);
+	
+		fprint($ar," -x ");
+		$valorX = `getAttr ($nombre +".pointCameraX")`;
+		
+		if(($valorX == 0) || ($valorX==1)) 
+					{$valorX =1200;$valorY =600;}
+		if ($valorX == 2)  {$valorX=1000; $valorY=500;}
+		
+		if ($valorX == 3)  {$valorX =800; $valorY=400;}
+		
+		fprint($ar,$valorX);
+		fprint($ar," -y ");
+		fprint($ar,$valorY);
+
+			
+		fprint($ar," -rl ");
+		string $nom = `getAttr ($nombre+".Nombre")`;
+		fprint($ar,$nom);
+		
+		//formato
+		fprint($ar," -of ");
+		$valorF = `getAttr ($nombre +".pointCameraY")`;
+
+		if(($valorF == 0) || ($valorF==1)) 
+					{$format = "iff";}
+		if ($valorF == 2)  {$format = "jpg";}
+		if ($valorF == 3)  {$format = "tif";}
+		if ($valorF == 4)  {$format = "tga";}
+		
+		fprint($ar,$format);
+
+		fprint($ar,"  -n 0 ");
+		fprint($ar,$archivoMaya);
+		//fprint($ar, "%");
+		}
+	delete $nombre;
+	
+	}
+fprint($ar, "%");
+fclose $ar;
+deleteUI -window myREND;
+
+}
+
+
+
+global proc Cancelar(){
+int $n=1;
+string $nombre;
+int $cant =0;
+
+string $multiAttrs[] = `listAttr -multi renderLayerManager.renderLayerId`;
+
+for ($multiAttr in $multiAttrs) {
+      string $multiPlug = "renderLayerManager."+$multiAttr;
+       string $renderLayer[] = `listConnections $multiPlug`;
+$cant++;
+}
+
+for($n=1;$n<=$cant;$n++)
+{
+$nombre = "Datos"+$n;
+delete $nombre;
+}
+deleteUI -window myREND;
+}
+
+
+/// main//
+
+global proc showMyWindow()
+{
+int $developing = true;
+int $k=0;
+int $pos =27;
+int $i;
+string $tx;
+string $nombre;
+string $campo;
+string $campo_nom;
+
+
+if (`window -exists myREND`)
+	deleteUI -window myREND;
+
+if(!`window -exists myREND`&& $developing)
+{	
+	
+ 	window -title "Script for render layers" -resizeToFitChildren true myREND;
+	string $vent = `formLayout -numberOfDivisions 100`;
+	string $but1 = `button -width 90 -height 30 -bgc 0.8 0.8 0.8 -label "Generar BAT" -c "GenerarArchivo();"`; 
+	string $but2 = `button -width 90 -height 30 -bgc 0.8 0.8 0.8 -label "Cancelar" -c "Cancelar();"`;
+	string $warn = `text -w 140 -h 30 -font "tinyBoldLabelFont" -bgc 0.95 0.95 0.95 -l "  WARNING! Don't X  "`;
+	string $titulo1 = `text 
+			-l "  R      Nombre de Layer                           Desde    Hasta          Tamaños          Formato                                " 
+			-align "left"  
+			-font "tinyBoldLabelFont"`;
+
+	formLayout -edit 
+		-attachForm $but1 "top" 2
+		-attachForm $but1 "left" 50 
+		-attachForm $but2 "top" 2
+		-attachForm $but2 "left" 170 
+		-attachForm $warn "top" 2
+		-attachForm $warn "left" 400
+		-attachForm $titulo1 "top" 34
+		-attachForm $titulo1 "left" 0 $vent;
+	
+
+	//layers
+	string $multiAttrs[] = `listAttr -multi renderLayerManager.renderLayerId`;
+for ($multiAttr in $multiAttrs) {
+      string $multiPlug = "renderLayerManager."+$multiAttr;
+       string $renderLayer[] = `listConnections $multiPlug`;
+          $pos = $pos+24;
+	   $k++;
+	  
+
+		$nombre = "Datos"+$k;
+		createNode "samplerInfo" -name $nombre;
+		addAttr -ln "Nombre" -dt "string" $nombre;
+		setAttr -e -keyable true ($nombre + ".Nombre");
+		
+
+	   //renderiable * Nombre Layer
+	   string $R = `checkBox -label "" -value true`;
+	   formLayout -edit -attachForm $R "left" 6 -attachForm $R "top" $pos $vent;
+	   connectControl $R ($nombre +".flippedNormal");
+
+
+	   //text -> nombreLayer
+	   string $texto = `text -label $renderLayer -align "left"`;
+	   setAttr -type "string" ($nombre + ".Nombre") $renderLayer;
+	    formLayout -edit 
+			-attachForm $texto "left" 40 
+			-attachForm $texto "top" $pos $vent;
+	  
+	  //rango 
+	     string $rango = `intFieldGrp -height 25 -cw 1 50 -cw 2 50 -numberOfFields 2`;
+	     formLayout -edit 
+			-attachForm $rango "top" $pos 
+			-attachForm $rango "left" 240 $vent;
+	    connectControl $rango -index 1 ($nombre + ".pointWorldX"); 
+	    connectControl $rango -index 2 ($nombre + ".pointWorldY");
+		
+		/*createNode "plusMinusAverage" -name ("Av"+$nombre);
+		setAttr ("Av"+$nombre+".operation") 2;
+		connectAttr -f ($nombre+".pointWorldX") ("Av"+$nombre +".input1D[1]");
+		connectAttr -f ($nombre+".pointWorldY") ("Av"+$nombre + ".input1D[0]");
+		connectAttr -f ("Av"+$nombre + ".output1D") ($nombre+".pointWorldZ"); */
+
+
+
+	//optionMenu -> Tamanios
+		 string $tam = `optionMenu`;
+			menuItem -label "1200x600" -data 1 -parent $tam;
+			menuItem -label "1000x500" -data 2 -parent $tam;
+			menuItem -label "800x600" -data 3 -parent $tam;
+		setParent ..;
+	
+     	    connectControl $tam ($nombre +".pointCameraX");
+			
+			
+		formLayout -edit  
+			-attachForm $tam "top" $pos 
+			-attachForm $tam "left" 360 $vent;
+	
+
+	//optionMenu -> Formatos
+		 string $formato = `optionMenu`;
+			menuItem -label "MAYA (iff)" -data 1 -parent $formato;
+			menuItem -label "JPEG (jpg)" -data 2 -parent $formato;
+			menuItem -label "Tiff (tif)" -data 3 -parent $formato;
+			menuItem -label "Targa (tga)" -data 4 -parent $formato;
+		setParent ..;
+
+		connectControl $formato ($nombre +".pointCameraY");
+	formLayout -edit  
+			-attachForm $formato "top" $pos 
+			-attachForm $formato "left" 450 $vent;         
+   		
+	
+	}
+	
+}
+showWindow myREND;
+
+}
+
+showMyWindow();
+//
